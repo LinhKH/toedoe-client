@@ -10,10 +10,20 @@ import {
 export const useStudentStore = defineStore("studentStore", () => {
 	const students = ref([]);
 	const allStudent = ref([]);
+	const isLoading = ref(false);
 
 	const fetchAllStudents = async (params = "") => {
-		const { data } = await getAllStudents(params);
-		students.value = data;
+		isLoading.value = true;
+		try {
+			const { data } = await getAllStudents(params);
+			students.value = data;
+			
+		} catch (error) {
+			
+		} finally {
+			isLoading.value = false;
+		}
+
 	};
 	const fetchAllStudentsWithoutPagination = async (params = "") => {
 		const { data } = await getAllStudents(params);
@@ -40,5 +50,6 @@ export const useStudentStore = defineStore("studentStore", () => {
 		removeSingleRecords,
 		removeMassRecords,
 		exportStudent,
+		isLoading
 	};
 });

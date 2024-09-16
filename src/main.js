@@ -12,5 +12,4 @@ import 'vue-toast-notification/dist/theme-bootstrap.css';
 const app = createApp(App);
 app.use(createPinia());
 app.use(route);
-app.component('pagination', import('laravel-vue-pagination'));
 app.mount("#app");
