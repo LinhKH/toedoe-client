@@ -3,18 +3,18 @@ import { storeToRefs } from 'pinia';
 import { onMounted, ref, watch } from 'vue';
 import debounce from 'lodash.debounce';
 import { Bootstrap5Pagination } from 'laravel-vue-pagination';
-
 import { useToast } from 'vue-toast-notification';
 
 import { useClassesStore } from '@/stores/classes';
 import { useSectionsStore } from '@/stores/sections';
 import { useStudentStore } from '@/stores/students';
 
-const paginate = ref(10);
+const item_per_page = ref(10);
 const selectedClass = ref('');
 const selectedSection = ref('');
 const search = ref('');
-const url = ref('');
+const sort_direction = ref('desc');
+const sort_field = ref('created_at');
 const checked = ref([]);
 const isCheckAll = ref(false);
 const selectAll = ref(false);
@@ -34,25 +34,25 @@ const { students, allStudent } = storeToRefs(studentStore);
 const { fetchAllStudents, fetchAllStudentsWithoutPagination, removeSingleRecords, removeMassRecords, exportStudent } = studentStore;
 const $toast = useToast();
 
-onMounted( async() => {
+onMounted(async () => {
     await fetchAllClasses();
     await getStudents();
 });
 
-watch( () => selectedClass.value, () => {
+watch(() => selectedClass.value, () => {
     getSectionClassId(selectedClass.value);
     getStudents();
 });
 
-watch( () => selectedSection.value, () => {
+watch(() => selectedSection.value, () => {
     getStudents();
 });
 
-watch( () => paginate.value, () => {
+watch(() => item_per_page.value, () => {
     getStudents();
 });
 
-watch( () => search.value, debounce((value) => {
+watch(() => search.value, debounce((value) => {
     console.log('search', value)
     getStudents();
 }, 300));
@@ -104,16 +104,16 @@ const getStudents = async (page = 1) => {
         "q=" +
         search.value +
         "&sort_direction=" +
-        // sort_direction.value +
-        // "&sort_field=" +
-        // sort_field.value +
+        sort_direction.value +
+        "&sort_field=" +
+        sort_field.value +
         "&selectedClass=" +
         selectedClass.value +
         "&selectedSection=" +
         selectedSection.value;
 
     getStudentsUrl.value = getStudentsUrlWithoutPaginate.value.concat(
-        "&paginate=" + paginate.value + "&page=" + page
+        "&item_per_page=" + item_per_page.value + "&page=" + page
     );
 
     await fetchAllStudents(getStudentsUrl.value);
@@ -148,6 +148,16 @@ const exportSelectedStudent = async () => {
     await exportStudent(checked.value);
 };
 
+const change_sort = async (field) => {
+    if (sort_field.value == field) {
+        sort_direction.value =
+            sort_direction.value == "asc" ? "desc" : "asc";
+    } else {
+        sort_field.value = field;
+    }
+    await getStudents();
+};
+
 </script>
 
 
@@ -168,46 +178,32 @@ const exportSelectedStudent = async () => {
                                     <div class="d-flex justify-content-between align-content-center mb-2 mt-2">
                                         <div class="d-flex">
                                             <div class="d-flex align-items-center ml-4 me-5">
-                                                <label for="paginate" class="text-nowrap mr-2 mb-0">Per Page</label>
-                                                <select v-model="paginate" class="form-control form-control-sm">
+                                                <label for="item_per_page" class="text-nowrap mr-2 mb-0">Per Page</label>
+                                                <select v-model="item_per_page" class="form-control form-control-sm">
                                                     <option value="10">10</option>
                                                     <option value="20">20</option>
                                                     <option value="30">30</option>
                                                 </select>
                                             </div>
                                             <div class="d-flex align-items-center ml-4 me-5">
-                                                <label for="paginate" class="text-nowrap mr-5 mb-0"
-                                                    >Filter By Class</label
-                                                >
-                                                <select
-                                                    v-model="selectedClass"
-                                                    class="form-control form-control-sm"
-                                                >
+                                                <label for="item_per_page" class="text-nowrap mr-5 mb-0">Filter By
+                                                    Class</label>
+                                                <select v-model="selectedClass" class="form-control form-control-sm">
                                                     <option value="">All Class</option>
-                                                    <option
-                                                        v-for="item in classess.data"
-                                                        :key="item.id"
-                                                        :value="item.id"
-                                                    >
+                                                    <option v-for="item in classess.data" :key="item.id"
+                                                        :value="item.id">
                                                         {{ item.name }}
                                                     </option>
                                                 </select>
                                             </div>
                                             <template v-if="selectedClass">
                                                 <div class="d-flex align-items-center ml-4 me-5">
-                                                    <label for="paginate" class="text-nowrap mr-2 mb-0"
-                                                        >Section</label
-                                                    >
-                                                    <select
-                                                        v-model="selectedSection"
-                                                        class="form-control form-control-sm"
-                                                    >
+                                                    <label for="item_per_page" class="text-nowrap mr-2 mb-0">Section</label>
+                                                    <select v-model="selectedSection"
+                                                        class="form-control form-control-sm">
                                                         <option value="">Select a Section</option>
-                                                        <option
-                                                            v-for="section in sections.data"
-                                                            :key="section.id"
-                                                            :value="section.id"
-                                                        >
+                                                        <option v-for="section in sections.data" :key="section.id"
+                                                            :value="section.id">
                                                             {{ section.name }}
                                                         </option>
                                                     </select>
@@ -215,34 +211,29 @@ const exportSelectedStudent = async () => {
                                             </template>
 
                                             <div class="dropdown">
-                                                <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                <button class="btn btn-secondary dropdown-toggle" type="button"
+                                                    data-bs-toggle="dropdown" aria-expanded="false">
                                                     With Checked ({{ checked.length }})
                                                 </button>
                                                 <ul class="dropdown-menu">
                                                     <li>
-                                                        <a
-                                                            href="#"
+                                                        <a href="#"
                                                             onclick="confirm('Are you sure you wanna delete this Record?') || event.stopImmediatePropagation()"
-                                                            class="dropdown-item"
-                                                            type="button"
-                                                            @click.prevent="deleteRecords"
-                                                        >
+                                                            class="dropdown-item" type="button"
+                                                            @click.prevent="deleteRecords">
                                                             Delete
                                                         </a>
                                                     </li>
-                                                    <li><a @click.prevent="exportSelectedStudent" class="dropdown-item" type="button">
-                                                        Export
-                                                    </a></li>
+                                                    <li><a @click.prevent="exportSelectedStudent" class="dropdown-item"
+                                                            type="button">
+                                                            Export
+                                                        </a></li>
                                                 </ul>
-                                                </div>
+                                            </div>
                                         </div>
                                         <div class="col-md-4">
-                                            <input
-                                                v-model="search"
-                                                type="search"
-                                                class="form-control"
-                                                placeholder="Search by name,email,phone,or address..."
-                                            />
+                                            <input v-model="search" type="search" class="form-control"
+                                                placeholder="Search by name,email,phone,or address..." />
                                         </div>
                                     </div>
                                     <div class="col-md-10 mb-2" v-if="isCheckAll">
@@ -253,94 +244,82 @@ const exportSelectedStudent = async () => {
                                         <div v-else>
                                             You have selected <strong>{{ checked.length }}</strong> items,
                                             Do you want to Select All
-                                            <strong>{{ students.meta.total }}</strong
-                                            >?
-                                            <a @click.prevent="selectAllRecords" href="#" class="ml-2"
-                                                >Select All</a
-                                            >
+                                            <strong>{{ students.meta.total }}</strong>?
+                                            <a @click.prevent="selectAllRecords" href="#" class="ml-2">Select All</a>
                                         </div>
                                     </div>
                                     <div class="card-body table-responsive p-0">
                                         <table class="table table-hover">
                                             <tbody>
                                                 <tr>
-                                                    <th><input type="checkbox" @change="setCheckAll" :checked="isCheckAll" v-model="isCheckAll" /></th>
+                                                    <th><input type="checkbox" @change="setCheckAll"
+                                                            :checked="isCheckAll" v-model="isCheckAll" /></th>
                                                     <th>
-                                                        <a href="">Student's Name</a>
-                                                        <span>&uarr;</span>
-                                                        <span>&darr;</span>
+                                                        <a href="" @click.prevent="change_sort('name')">Student's
+                                                            Name</a>
+                                                        <span v-if="
+                                                            sort_direction == 'desc' &&
+                                                            sort_field == 'name'
+                                                        ">&uarr;</span>
+                                                        <span v-if="
+                                                            sort_direction == 'asc' &&
+                                                            sort_field == 'name'
+                                                        ">&darr;</span>
                                                     </th>
                                                     <th>
-                                                        <a href="#"
-                                                            >Email</a
-                                                        >
-                                                        <span
-                                                            
-                                                            >&uarr;</span
-                                                        >
-                                                        <span
-                                                           
-                                                            >&darr;</span
-                                                        >
+                                                        <a href="#" @click.prevent="change_sort('email')">Email</a>
+                                                        <span v-if="
+                                                            sort_direction == 'desc' &&
+                                                            sort_field == 'email'
+                                                        ">&uarr;</span>
+                                                        <span v-if="
+                                                            sort_direction == 'asc' &&
+                                                            sort_field == 'email'
+                                                        ">&darr;</span>
                                                     </th>
                                                     <th>
-                                                        <a href="#"
-                                                            >Address</a
-                                                        >
-                                                        <span
-                                                            
-                                                            >&uarr;</span
-                                                        >
-                                                        <span
-                                                           
-                                                            >&darr;</span
-                                                        >
+                                                        <a href="#" @click.prevent="change_sort('address')">Address</a>
+                                                        <span v-if="
+                                                            sort_direction == 'desc' &&
+                                                            sort_field == 'address'
+                                                        ">&uarr;</span>
+                                                        <span v-if="
+                                                            sort_direction == 'asc' &&
+                                                            sort_field == 'address'
+                                                        ">&darr;</span>
                                                     </th>
                                                     <th>
-                                                        <a
-                                                            href="#"
-                                                            
-                                                            >Phone Number</a
-                                                        >
-                                                        <span
-                                                            
-                                                            >&uarr;</span
-                                                        >
-                                                        <span
-                                                           
-                                                            >&darr;</span
-                                                        >
+                                                        <a href="#" @click.prevent="change_sort('phone_number')">Phone
+                                                            Number</a>
+                                                        <span v-if="
+                                                            sort_direction == 'desc' &&
+                                                            sort_field == 'phone_number'
+                                                        ">&uarr;</span>
+                                                        <span v-if="
+                                                            sort_direction == 'asc' &&
+                                                            sort_field == 'phone_number'
+                                                        ">&darr;</span>
                                                     </th>
                                                     <th>
-                                                        <a
-                                                            href="#"
-                                                            
-                                                            >Created At</a
-                                                        >
-                                                        <span
-                                                           
-                                                            >&uarr;</span
-                                                        >
-                                                        <span
-                                                           
-                                                            >&darr;</span
-                                                        >
+                                                        <a href="#" @click.prevent="change_sort('created_at')">Created
+                                                            At</a>
+                                                        <span v-if="
+                                                            sort_direction == 'desc' &&
+                                                            sort_field == 'created_at'
+                                                        ">&uarr;</span>
+                                                        <span v-if="
+                                                            sort_direction == 'asc' &&
+                                                            sort_field == 'created_at'
+                                                        ">&darr;</span>
                                                     </th>
                                                     <th>Class</th>
                                                     <th>Section</th>
                                                     <th>Action</th>
                                                 </tr>
-                                                <tr
-                                                    v-for="student in students.data"
-                                                    :key="student.id"
-                                                    :class="isChecked(student.id) ? 'table-primary' : ''"
-                                                    >
+                                                <tr v-for="student in students.data" :key="student.id"
+                                                    :class="isChecked(student.id) ? 'table-primary' : ''">
                                                     <td>
-                                                        <input
-                                                            type="checkbox"
-                                                            :value="student.id"
-                                                            v-model="checked"
-                                                        />
+                                                        <input type="checkbox" :value="student.id" v-model="checked" />
                                                     </td>
                                                     <td>{{ student.name }}</td>
                                                     <td>{{ student.email }}</td>
@@ -353,8 +332,7 @@ const exportSelectedStudent = async () => {
                                                         <button
                                                             onclick="confirm('Are you sure you wanna delete this Record?') || event.stopImmediatePropagation()"
                                                             class="btn btn-danger btn-sm"
-                                                            @click="deleteSingleRecord(student.id)"
-                                                        >
+                                                            @click="deleteSingleRecord(student.id)">
                                                             <i class="fa fa-trash" aria-hidden="true"></i>
                                                         </button>
                                                     </td>
@@ -364,10 +342,8 @@ const exportSelectedStudent = async () => {
                                     </div>
                                     <div class="row mt-4">
                                         <div class="col-sm-6 offset-5">
-                                            <Bootstrap5Pagination
-                                                :data="students"
-                                                @pagination-change-page="getStudents"
-                                            ></Bootstrap5Pagination>
+                                            <Bootstrap5Pagination :data="students" :limit="5"
+                                                @pagination-change-page="getStudents"></Bootstrap5Pagination>
                                         </div>
                                     </div>
                                 </div>
