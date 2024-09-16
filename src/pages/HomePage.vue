@@ -1,22 +1,383 @@
+<script setup>
+import { storeToRefs } from 'pinia';
+import { onMounted, ref, watch } from 'vue';
+import debounce from 'lodash.debounce';
+import { Bootstrap5Pagination } from 'laravel-vue-pagination';
+
+import { useToast } from 'vue-toast-notification';
+
+import { useClassesStore } from '@/stores/classes';
+import { useSectionsStore } from '@/stores/sections';
+import { useStudentStore } from '@/stores/students';
+
+const paginate = ref(10);
+const selectedClass = ref('');
+const selectedSection = ref('');
+const search = ref('');
+const url = ref('');
+const checked = ref([]);
+const isCheckAll = ref(false);
+const selectAll = ref(false);
+const getStudentsUrl = ref('');
+const getStudentsUrlWithoutPaginate = ref('');
+
+const classStore = useClassesStore();
+const { classess } = storeToRefs(classStore);
+const { fetchAllClasses } = classStore;
+
+const sectionStore = useSectionsStore();
+const { sections } = storeToRefs(sectionStore);
+const { getSectionClassId } = sectionStore;
+
+const studentStore = useStudentStore();
+const { students, allStudent } = storeToRefs(studentStore);
+const { fetchAllStudents, fetchAllStudentsWithoutPagination, removeSingleRecords, removeMassRecords, exportStudent } = studentStore;
+const $toast = useToast();
+
+onMounted( async() => {
+    await fetchAllClasses();
+    await getStudents();
+});
+
+watch( () => selectedClass.value, () => {
+    getSectionClassId(selectedClass.value);
+    getStudents();
+});
+
+watch( () => selectedSection.value, () => {
+    getStudents();
+});
+
+watch( () => paginate.value, () => {
+    getStudents();
+});
+
+watch( () => search.value, debounce((value) => {
+    console.log('search', value)
+    getStudents();
+}, 300));
+
+const setCheckAll = () => {
+    console.log(isCheckAll.value);
+    checked.value = [];
+    if (isCheckAll.value) {
+        students.value.data.filter(student => {
+            checked.value.push(student.id);
+        });
+    } else {
+        isCheckAll.value = false;
+    }
+};
+// watch(() => isCheckAll.value, (value) => {
+//     if (value) {
+//         checked.value = [];
+//         students.value.data.filter(student => {
+//             checked.value.push(student.id);
+//         });
+//     } else {
+//         checked.value = [];
+//         isCheckAll.value = false;
+//     }
+// });
+
+watch(() => checked.value, (value) => {
+    if (checked.value.length == students.value.data.length) {
+        isCheckAll.value = true;
+    } else {
+        // checked.value = [];
+
+        const index = checked.value.indexOf(value);
+        if (index > -1) {
+            checked.value.splice(index, 1);
+        }
+
+        isCheckAll.value = false;
+    }
+})
+
+const isChecked = (student_id) => {
+    return checked.value.includes(student_id);
+};
+
+const getStudents = async (page = 1) => {
+    getStudentsUrlWithoutPaginate.value =
+        "q=" +
+        search.value +
+        "&sort_direction=" +
+        // sort_direction.value +
+        // "&sort_field=" +
+        // sort_field.value +
+        "&selectedClass=" +
+        selectedClass.value +
+        "&selectedSection=" +
+        selectedSection.value;
+
+    getStudentsUrl.value = getStudentsUrlWithoutPaginate.value.concat(
+        "&paginate=" + paginate.value + "&page=" + page
+    );
+
+    await fetchAllStudents(getStudentsUrl.value);
+
+};
+
+const deleteSingleRecord = async (student_id) => {
+    await removeSingleRecords(student_id);
+    checked.value = checked.value.filter(id => id !== student_id);
+    await getStudents();
+    $toast.success('Student removed succcessfully!');
+};
+
+const deleteRecords = async () => {
+    await removeMassRecords(checked.value);
+    checked.value = [];
+    await getStudents();
+    $toast.success("Selected Students were Deleted Successfully");
+};
+
+const selectAllRecords = async () => {
+    await fetchAllStudentsWithoutPagination(getStudentsUrlWithoutPaginate.value);
+    checked.value = [];
+
+    allStudent.value.data.map(student => {
+        checked.value.push(student.id);
+    });
+    selectAll.value = true;
+};
+
+const exportSelectedStudent = async () => {
+    await exportStudent(checked.value);
+};
+
+</script>
+
+
 <template>
-    <main class="px-4 py-5 my-5 text-center" style="min-height: 50vh">
-        <h1 class="display-5 fw-bold mt-4">Stay Organized, be productive</h1>
-        <div class="col-lg-6 mx-auto">
-            <p class="lead mb-4">
-                Organize your ideas, and be productive everyday.
-            </p>
-            <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
-                <router-link
-                    :to="{ name: 'register' }"
-                    class="btn btn-primary btn-lg px-4 gap-3"
-                    >Sign up</router-link
-                >
-                <router-link
-                    :to="{ name: 'login' }"
-                    class="btn btn-outline-secondary btn-lg px-4"
-                    >Sign in</router-link
-                >
+    <div class="wrapper">
+        <div class="content-wrapper">
+            <div class="content">
+                <div class="container-fluid">
+                    <div class="container">
+                        <div class="row mt-5">
+                            <div class="col-md-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h3 class="card-title">Vue.js DataTable Tutorial</h3>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="d-flex justify-content-between align-content-center mb-2 mt-2">
+                                        <div class="d-flex">
+                                            <div class="d-flex align-items-center ml-4 me-5">
+                                                <label for="paginate" class="text-nowrap mr-2 mb-0">Per Page</label>
+                                                <select v-model="paginate" class="form-control form-control-sm">
+                                                    <option value="10">10</option>
+                                                    <option value="20">20</option>
+                                                    <option value="30">30</option>
+                                                </select>
+                                            </div>
+                                            <div class="d-flex align-items-center ml-4 me-5">
+                                                <label for="paginate" class="text-nowrap mr-5 mb-0"
+                                                    >Filter By Class</label
+                                                >
+                                                <select
+                                                    v-model="selectedClass"
+                                                    class="form-control form-control-sm"
+                                                >
+                                                    <option value="">All Class</option>
+                                                    <option
+                                                        v-for="item in classess.data"
+                                                        :key="item.id"
+                                                        :value="item.id"
+                                                    >
+                                                        {{ item.name }}
+                                                    </option>
+                                                </select>
+                                            </div>
+                                            <template v-if="selectedClass">
+                                                <div class="d-flex align-items-center ml-4 me-5">
+                                                    <label for="paginate" class="text-nowrap mr-2 mb-0"
+                                                        >Section</label
+                                                    >
+                                                    <select
+                                                        v-model="selectedSection"
+                                                        class="form-control form-control-sm"
+                                                    >
+                                                        <option value="">Select a Section</option>
+                                                        <option
+                                                            v-for="section in sections.data"
+                                                            :key="section.id"
+                                                            :value="section.id"
+                                                        >
+                                                            {{ section.name }}
+                                                        </option>
+                                                    </select>
+                                                </div>
+                                            </template>
+
+                                            <div class="dropdown">
+                                                <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                    With Checked ({{ checked.length }})
+                                                </button>
+                                                <ul class="dropdown-menu">
+                                                    <li>
+                                                        <a
+                                                            href="#"
+                                                            onclick="confirm('Are you sure you wanna delete this Record?') || event.stopImmediatePropagation()"
+                                                            class="dropdown-item"
+                                                            type="button"
+                                                            @click.prevent="deleteRecords"
+                                                        >
+                                                            Delete
+                                                        </a>
+                                                    </li>
+                                                    <li><a @click.prevent="exportSelectedStudent" class="dropdown-item" type="button">
+                                                        Export
+                                                    </a></li>
+                                                </ul>
+                                                </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input
+                                                v-model="search"
+                                                type="search"
+                                                class="form-control"
+                                                placeholder="Search by name,email,phone,or address..."
+                                            />
+                                        </div>
+                                    </div>
+                                    <div class="col-md-10 mb-2" v-if="isCheckAll">
+                                        <div v-if="selectAll || students.meta.total == checked.length">
+                                            You are currently selecting all
+                                            <strong>{{ checked.length }}</strong> items.
+                                        </div>
+                                        <div v-else>
+                                            You have selected <strong>{{ checked.length }}</strong> items,
+                                            Do you want to Select All
+                                            <strong>{{ students.meta.total }}</strong
+                                            >?
+                                            <a @click.prevent="selectAllRecords" href="#" class="ml-2"
+                                                >Select All</a
+                                            >
+                                        </div>
+                                    </div>
+                                    <div class="card-body table-responsive p-0">
+                                        <table class="table table-hover">
+                                            <tbody>
+                                                <tr>
+                                                    <th><input type="checkbox" @change="setCheckAll" :checked="isCheckAll" v-model="isCheckAll" /></th>
+                                                    <th>
+                                                        <a href="">Student's Name</a>
+                                                        <span>&uarr;</span>
+                                                        <span>&darr;</span>
+                                                    </th>
+                                                    <th>
+                                                        <a href="#"
+                                                            >Email</a
+                                                        >
+                                                        <span
+                                                            
+                                                            >&uarr;</span
+                                                        >
+                                                        <span
+                                                           
+                                                            >&darr;</span
+                                                        >
+                                                    </th>
+                                                    <th>
+                                                        <a href="#"
+                                                            >Address</a
+                                                        >
+                                                        <span
+                                                            
+                                                            >&uarr;</span
+                                                        >
+                                                        <span
+                                                           
+                                                            >&darr;</span
+                                                        >
+                                                    </th>
+                                                    <th>
+                                                        <a
+                                                            href="#"
+                                                            
+                                                            >Phone Number</a
+                                                        >
+                                                        <span
+                                                            
+                                                            >&uarr;</span
+                                                        >
+                                                        <span
+                                                           
+                                                            >&darr;</span
+                                                        >
+                                                    </th>
+                                                    <th>
+                                                        <a
+                                                            href="#"
+                                                            
+                                                            >Created At</a
+                                                        >
+                                                        <span
+                                                           
+                                                            >&uarr;</span
+                                                        >
+                                                        <span
+                                                           
+                                                            >&darr;</span
+                                                        >
+                                                    </th>
+                                                    <th>Class</th>
+                                                    <th>Section</th>
+                                                    <th>Action</th>
+                                                </tr>
+                                                <tr
+                                                    v-for="student in students.data"
+                                                    :key="student.id"
+                                                    :class="isChecked(student.id) ? 'table-primary' : ''"
+                                                    >
+                                                    <td>
+                                                        <input
+                                                            type="checkbox"
+                                                            :value="student.id"
+                                                            v-model="checked"
+                                                        />
+                                                    </td>
+                                                    <td>{{ student.name }}</td>
+                                                    <td>{{ student.email }}</td>
+                                                    <td>{{ student.address }}</td>
+                                                    <td>{{ student.phone_number }}</td>
+                                                    <td>{{ student.created_at }}</td>
+                                                    <td>{{ student.class }}</td>
+                                                    <td>{{ student.section }}</td>
+                                                    <td>
+                                                        <button
+                                                            onclick="confirm('Are you sure you wanna delete this Record?') || event.stopImmediatePropagation()"
+                                                            class="btn btn-danger btn-sm"
+                                                            @click="deleteSingleRecord(student.id)"
+                                                        >
+                                                            <i class="fa fa-trash" aria-hidden="true"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="row mt-4">
+                                        <div class="col-sm-6 offset-5">
+                                            <Bootstrap5Pagination
+                                                :data="students"
+                                                @pagination-change-page="getStudents"
+                                            ></Bootstrap5Pagination>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-    </main>
+
+    </div>
 </template>
