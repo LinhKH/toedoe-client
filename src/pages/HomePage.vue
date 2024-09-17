@@ -35,6 +35,9 @@ const { fetchAllStudents, fetchAllStudentsWithoutPagination, removeSingleRecords
 const $toast = useToast();
 
 import Loading from '../components/loader/Loading.vue';
+import Checkbox from '../components/Checkbox.vue';
+import CheckAll from '../components/CheckAll.vue';
+import Sortable from '../components/Sortable.vue';
 
 onMounted(async () => {
     await fetchAllClasses();
@@ -55,47 +58,16 @@ watch(() => item_per_page.value, () => {
 });
 
 watch(() => search.value, debounce((value) => {
-    console.log('search', value)
     getStudents();
 }, 300));
-
-const setCheckAll = () => {
-    console.log(isCheckAll.value);
-    checked.value = [];
-    if (isCheckAll.value) {
-        students.value.data.filter(student => {
-            checked.value.push(student.id);
-        });
-    } else {
-        isCheckAll.value = false;
-    }
-};
-// watch(() => isCheckAll.value, (value) => {
-//     if (value) {
-//         checked.value = [];
-//         students.value.data.filter(student => {
-//             checked.value.push(student.id);
-//         });
-//     } else {
-//         checked.value = [];
-//         isCheckAll.value = false;
-//     }
-// });
 
 watch(() => checked.value, (value) => {
     if (checked.value.length == students.value.data.length) {
         isCheckAll.value = true;
     } else {
-        // checked.value = [];
-
-        const index = checked.value.indexOf(value);
-        if (index > -1) {
-            checked.value.splice(index, 1);
-        }
-
         isCheckAll.value = false;
     }
-})
+});
 
 const isChecked = (student_id) => {
     return checked.value.includes(student_id);
@@ -150,15 +122,19 @@ const exportSelectedStudent = async () => {
     await exportStudent(checked.value);
 };
 
-const change_sort = async (field) => {
-    if (sort_field.value == field) {
-        sort_direction.value =
-            sort_direction.value == "asc" ? "desc" : "asc";
+const handleSearch = async (field) => {
+    if (field === sort_field.value) {
+        if (sort_direction.value === 'desc') {
+            sort_direction.value = 'asc'
+        } else {
+            sort_direction.value = 'desc'
+        }
     } else {
         sort_field.value = field;
+        sort_direction.value = 'asc'
     }
     await getStudents();
-};
+}
 
 </script>
 
@@ -219,7 +195,7 @@ const change_sort = async (field) => {
                                                 </template>
 
                                                 <div class="dropdown">
-                                                    <button class="btn btn-secondary dropdown-toggle" type="button"
+                                                    <button class="btn btn-secondary dropdown-toggle" type="button" v-if="checked.length > 0"
                                                         data-bs-toggle="dropdown" aria-expanded="false">
                                                         With Checked ({{ checked.length }})
                                                     </button>
@@ -244,7 +220,7 @@ const change_sort = async (field) => {
                                                     placeholder="Search by name,email,phone,or address..." />
                                             </div>
                                         </div>
-                                        <div class="col-md-10 mb-2" v-if="isCheckAll">
+                                        <div class="col-md-10 mb-2" v-if="isCheckAll || selectAll">
                                             <div v-if="selectAll || students.meta.total == checked.length">
                                                 You are currently selecting all
                                                 <strong>{{ checked.length }}</strong> items.
@@ -261,68 +237,25 @@ const change_sort = async (field) => {
                                             <table class="table table-hover">
                                                 <tbody>
                                                     <tr>
-                                                        <th><input type="checkbox" @change="setCheckAll"
-                                                                :checked="isCheckAll" v-model="isCheckAll" /></th>
                                                         <th>
-                                                            <a href="" @click.prevent="change_sort('name')">Student's
-                                                                Name</a>
-                                                            <span v-if="
-                                                                sort_direction == 'desc' &&
-                                                                sort_field == 'name'
-                                                            ">&uarr;</span>
-                                                            <span v-if="
-                                                                sort_direction == 'asc' &&
-                                                                sort_field == 'name'
-                                                            ">&darr;</span>
+                                                            <!-- <input type="checkbox" @change="setCheckAll"
+                                                                 v-model="isCheckAll" /> -->
+                                                            <CheckAll v-model="checked"  v-if="students && students.data" :rows="students.data"/>
                                                         </th>
                                                         <th>
-                                                            <a href="#" @click.prevent="change_sort('email')">Email</a>
-                                                            <span v-if="
-                                                                sort_direction == 'desc' &&
-                                                                sort_field == 'email'
-                                                            ">&uarr;</span>
-                                                            <span v-if="
-                                                                sort_direction == 'asc' &&
-                                                                sort_field == 'email'
-                                                            ">&darr;</span>
+                                                            <Sortable :sort_field="sort_field" :sort_direction="sort_direction" label="Student's Name" name="name" @click="handleSearch('name')" />
                                                         </th>
                                                         <th>
-                                                            <a href="#"
-                                                                @click.prevent="change_sort('address')">Address</a>
-                                                            <span v-if="
-                                                                sort_direction == 'desc' &&
-                                                                sort_field == 'address'
-                                                            ">&uarr;</span>
-                                                            <span v-if="
-                                                                sort_direction == 'asc' &&
-                                                                sort_field == 'address'
-                                                            ">&darr;</span>
+                                                            <Sortable :sort_field="sort_field" :sort_direction="sort_direction" label="Email" name="email" @click="handleSearch('email')" />
                                                         </th>
                                                         <th>
-                                                            <a href="#"
-                                                                @click.prevent="change_sort('phone_number')">Phone
-                                                                Number</a>
-                                                            <span v-if="
-                                                                sort_direction == 'desc' &&
-                                                                sort_field == 'phone_number'
-                                                            ">&uarr;</span>
-                                                            <span v-if="
-                                                                sort_direction == 'asc' &&
-                                                                sort_field == 'phone_number'
-                                                            ">&darr;</span>
+                                                            <Sortable :sort_field="sort_field" :sort_direction="sort_direction" label="Address" name="address" @click="handleSearch('address')" />
                                                         </th>
                                                         <th>
-                                                            <a href="#"
-                                                                @click.prevent="change_sort('created_at')">Created
-                                                                At</a>
-                                                            <span v-if="
-                                                                sort_direction == 'desc' &&
-                                                                sort_field == 'created_at'
-                                                            ">&uarr;</span>
-                                                            <span v-if="
-                                                                sort_direction == 'asc' &&
-                                                                sort_field == 'created_at'
-                                                            ">&darr;</span>
+                                                            <Sortable :sort_field="sort_field" :sort_direction="sort_direction" label="Phone" name="phone_number" @click="handleSearch('phone_number')" />
+                                                        </th>
+                                                        <th>
+                                                            <Sortable :sort_field="sort_field" :sort_direction="sort_direction" label="Created At" name="created_at" @click="handleSearch('created_at')" />
                                                         </th>
                                                         <th>Class</th>
                                                         <th>Section</th>
@@ -331,8 +264,8 @@ const change_sort = async (field) => {
                                                     <tr v-for="student in students.data" :key="student.id"
                                                         :class="isChecked(student.id) ? 'table-primary' : ''">
                                                         <td>
-                                                            <input type="checkbox" :value="student.id"
-                                                                v-model="checked" />
+                                                            <Checkbox :value="student.id" v-model:checked="checked" />
+                                                            <!-- <input type="checkbox" :value="student.id" v-model="checked" /> -->
                                                         </td>
                                                         <td>{{ student.name }}</td>
                                                         <td>{{ student.email }}</td>

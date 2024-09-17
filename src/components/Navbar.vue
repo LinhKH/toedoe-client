@@ -77,5 +77,6 @@ const toggleClass = computed(() => isOpen.value === true ? 'show' : '')
 <style scoped>
 .nav-link.router-link-active {
     color: rgba(0, 0, 0, 0.9);
+    font-weight: 800;
 }
 </style>
